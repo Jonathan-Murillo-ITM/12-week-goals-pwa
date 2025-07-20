@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>12 Week Goals - Test</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 0; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        .button { background: #007AFF; color: white; border: none; padding: 15px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin: 10px 0; }
+        .header { text-align: center; color: #007AFF; margin-bottom: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 12 Week Goals</h1>
+            <p>Versión de prueba - ¿Funciona el JavaScript?</p>
+        </div>
+        
+        <button class="button" onclick="testAlert()">Test JavaScript</button>
+        <button class="button" onclick="showMessage()">Test PWA</button>
+        
+        <div id="message" style="margin-top: 20px; padding: 15px; background: #f0f0f0; border-radius: 8px; display: none;">
+            <h3>¡JavaScript funciona! 🎉</h3>
+            <p>Tu PWA está lista para funcionar.</p>
+        </div>
+    </div>
+    
+    <script>
+        function testAlert() {
+            alert('¡JavaScript funciona correctamente! 🎉');
+        }
+        
+        function showMessage() {
+            document.getElementById('message').style.display = 'block';
+        }
+        
+        console.log('🚀 Test page loaded successfully');
+    </script>
+</body>
+</html>
