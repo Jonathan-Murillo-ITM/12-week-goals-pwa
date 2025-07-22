@@ -388,16 +388,30 @@ function setLoadingState(loading) {
 }
 
 // ===== CALCULADOR DE SEMANAS =====
-async function getWeekProgress(startDate) {
+async function getWeekProgress(startDate, cacheBuster = null) {
     try {
         const formattedDate = startDate instanceof Date 
             ? startDate.toISOString().split('T')[0] 
             : startDate;
-            
-        const url = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${formattedDate}`;
+        
+        // Construir URL con cache busting
+        let url = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${formattedDate}`;
+        if (cacheBuster) {
+            url += `&v=${cacheBuster}&_cb=${Date.now()}`;
+        }
+        
         console.log('🌐 Haciendo fetch a:', url);
         
-        const response = await fetch(url);
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            cache: 'no-store'
+        });
+        
         console.log('📡 Response status:', response.status);
         console.log('📡 Response ok:', response.ok);
         
@@ -434,15 +448,27 @@ async function loadWeekProgress() {
             </div>
         `;
         
+        // Cache busting más agresivo para móviles
+        const timestamp = Date.now();
+        const randomValue = Math.random().toString(36).substring(7);
+        const cacheBuster = `${timestamp}_${randomValue}`;
+        
         const testDate = '2025-07-14';
-        const fullUrl = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${testDate}`;
+        const fullUrl = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${testDate}&v=${cacheBuster}&_cb=${timestamp}`;
         
         console.log('📅 Fecha de consulta:', testDate);
         console.log('🌐 URL completa:', fullUrl);
         console.log('🔧 API_CONFIG:', API_CONFIG);
+        console.log('📱 Device Info:', {
+            userAgent: navigator.userAgent,
+            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+            isSafari: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
+            isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
+            cacheBuster: cacheBuster
+        });
         
         console.log('📡 Iniciando fetch...');
-        const result = await getWeekProgress(testDate);
+        const result = await getWeekProgress(testDate, cacheBuster);
         console.log('✅ Respuesta recibida:', result);
         
         if (result && result.message) {
