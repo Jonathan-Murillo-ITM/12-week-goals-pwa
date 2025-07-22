@@ -1,13 +1,13 @@
 const CACHE_NAME = '12-week-goals-v1';
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/styles.css',
-  '/app.js',
-  '/manifest.json',
-  '/icons/icon.svg',
-  '/icons/icon-192x192.svg',
-  '/icons/icon-512x512.svg'
+  '/12-week-goals-pwa/',
+  '/12-week-goals-pwa/index.html',
+  '/12-week-goals-pwa/styles.css',
+  '/12-week-goals-pwa/app.js',
+  '/12-week-goals-pwa/manifest.json',
+  '/12-week-goals-pwa/icons/icon.svg',
+  '/12-week-goals-pwa/icons/icon-192x192.svg',
+  '/12-week-goals-pwa/icons/icon-512x512.svg'
 ];
 
 // Instalación del Service Worker

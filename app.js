@@ -1,4 +1,8 @@
 // ===== CONFIGURACIÓN ===== 
+// Detectar si estamos en GitHub Pages
+const isGitHubPages = window.location.hostname.includes('github.io');
+const basePath = isGitHubPages ? '/12-week-goals-pwa' : '';
+
 const API_CONFIG = {
     baseURL: 'https://12-week-goals-back-production.up.railway.app/api', // Tu API backend
     endpoints: {
@@ -77,7 +81,8 @@ function initializeApp() {
 
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
+        const swPath = isGitHubPages ? '/12-week-goals-pwa/sw.js' : '/sw.js';
+        navigator.serviceWorker.register(swPath)
             .then(registration => console.log('SW registrado:', registration))
             .catch(error => console.log('SW error:', error));
     }

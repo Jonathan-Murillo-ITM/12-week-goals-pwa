@@ -2,7 +2,7 @@
   "name": "12 Week Goals",
   "short_name": "12WeekGoals",
   "description": "Crea listas de tareas de 12 semanas en Microsoft To Do",
-  "start_url": "/",
+  "start_url": "/12-week-goals-pwa/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#007AFF",
