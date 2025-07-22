@@ -20,6 +20,13 @@ const API_CONFIG = {
     }
 };
 
+// Función para crear URLs con cache-busting
+function createCacheBustingUrl(url) {
+    const timestamp = Date.now();
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}_t=${timestamp}`;
+}
+
 // ===== VARIABLES GLOBALES =====
 let currentScreen = 'splash';
 let goals = [];
@@ -108,18 +115,17 @@ function initializeApp() {
 }
 
 function registerServiceWorker() {
+    // Service Worker deshabilitado para evitar cache
+    console.log('🚫 Service Worker deshabilitado - Sin cache');
+    
+    // Si hay un service worker previo, desregistrarlo
     if ('serviceWorker' in navigator) {
-        const swPath = isGitHubPages ? '/12-week-goals-pwa/sw.js' : '/sw.js';
-        console.log('📄 Service Worker path:', swPath);
-        
-        navigator.serviceWorker.register(swPath)
-            .then(registration => {
-                console.log('✅ SW registrado:', registration);
-                console.log('🔄 SW scope:', registration.scope);
-            })
-            .catch(error => {
-                console.log('❌ SW error:', error);
-            });
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            for(let registration of registrations) {
+                registration.unregister();
+                console.log('🗑️ Service Worker desregistrado');
+            }
+        });
     }
 }
 
@@ -394,10 +400,15 @@ async function getWeekProgress(startDate, cacheBuster = null) {
             ? startDate.toISOString().split('T')[0] 
             : startDate;
         
-        // Construir URL con cache busting
+        // Construir URL base
         let url = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${formattedDate}`;
+        
+        // Aplicar cache-busting automáticamente
+        url = createCacheBustingUrl(url);
+        
+        // Agregar cache buster adicional si se proporciona
         if (cacheBuster) {
-            url += `&v=${cacheBuster}&_cb=${Date.now()}`;
+            url += `&v=${cacheBuster}`;
         }
         
         console.log('🌐 Haciendo fetch a:', url);
@@ -416,7 +427,7 @@ async function getWeekProgress(startDate, cacheBuster = null) {
         console.log('📡 Response ok:', response.ok);
         
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            throw new Error(`HTTP ${response.status}: ${response.status}`);
         }
         
         const data = await response.json();
