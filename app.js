@@ -74,8 +74,10 @@ function initializeApp() {
     // Mostrar splash screen por 500ms (más rápido)
     setTimeout(() => {
         showScreen('main');
-        // Cargar automáticamente el progreso de las metas
-        loadWeekProgress();
+        // Cargar automáticamente el progreso de las metas con un pequeño delay
+        setTimeout(() => {
+            loadWeekProgress();
+        }, 1000);
     }, 500);
 }
 
@@ -98,6 +100,15 @@ function setupEventListeners() {
     const continueBtn = document.getElementById('continue-btn');
     if (continueBtn) {
         continueBtn.addEventListener('click', () => showScreen('main'));
+    }
+    
+    // Botón de recargar progreso
+    const reloadBtn = document.getElementById('reload-progress-btn');
+    if (reloadBtn) {
+        reloadBtn.addEventListener('click', () => {
+            console.log('🔄 Recargando progreso manualmente...');
+            loadWeekProgress();
+        });
     }
     
     // Form
@@ -131,6 +142,11 @@ function showScreen(screenName) {
         // Inicializar screen específica
         if (screenName === 'create') {
             initializeCreateScreen();
+        } else if (screenName === 'main') {
+            // Cargar progreso cuando se muestra la pantalla principal
+            setTimeout(() => {
+                loadWeekProgress();
+            }, 300);
         }
     }
 }
@@ -365,6 +381,13 @@ async function loadWeekProgress() {
     try {
         console.log('📊 Cargando progreso de semanas automáticamente...');
         
+        // Verificar que el elemento exista
+        const resultDiv = document.getElementById('calculator-result');
+        if (!resultDiv) {
+            console.error('❌ No se encontró el elemento calculator-result');
+            return;
+        }
+        
         const testDate = '2025-07-14';
         console.log('📅 Consultando con fecha:', testDate);
         console.log('🌐 URL completa:', `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${testDate}`);
@@ -374,16 +397,37 @@ async function loadWeekProgress() {
         
         if (result) {
             displayCalculatorResult(result);
+            console.log('✅ Progreso mostrado en interfaz');
+        } else {
+            console.log('❌ No se obtuvo resultado del API');
         }
     } catch (error) {
         console.error('❌ Error al cargar progreso automáticamente:', error);
-        // Si hay error, simplemente no mostramos nada, la app sigue funcionando
+        // Mostrar un mensaje de error amigable y el botón de recarga
+        const resultDiv = document.getElementById('calculator-result');
+        const reloadDiv = document.getElementById('reload-progress');
+        
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; color: #856404;">
+                    <p><strong>⚠️ No se pudo cargar el progreso</strong></p>
+                    <p>Verifica tu conexión a internet e intenta recargar.</p>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+        }
+        
+        // Mostrar botón de recarga
+        if (reloadDiv) {
+            reloadDiv.classList.remove('hidden');
+        }
     }
 }
 
 // Mostrar resultado del calculador en la interfaz
 function displayCalculatorResult(data) {
     const resultDiv = elements.calculatorResult;
+    const reloadDiv = document.getElementById('reload-progress');
     
     resultDiv.innerHTML = `
         <h3>📊 Progreso de Metas</h3>
@@ -402,6 +446,11 @@ function displayCalculatorResult(data) {
     `;
     
     resultDiv.classList.remove('hidden');
+    
+    // Ocultar botón de recarga si existe
+    if (reloadDiv) {
+        reloadDiv.classList.add('hidden');
+    }
 }
 
 function showSuccess(data) {
