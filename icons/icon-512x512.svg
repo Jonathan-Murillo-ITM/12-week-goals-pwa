@@ -1,0 +1,5 @@
+<!-- Ícono PWA 512x512 para 12 Week Goals -->
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#007AFF"/>
+  <text x="256" y="340" font-family="Arial, sans-serif" font-size="200" fill="white" text-anchor="middle">🎯</text>
+</svg>
