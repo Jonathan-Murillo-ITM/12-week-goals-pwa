@@ -24,6 +24,11 @@ const server = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     
+    // Deshabilitar cache para desarrollo
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
         res.end();
@@ -56,6 +61,13 @@ const server = http.createServer((req, res) => {
                 res.end('Error interno del servidor: ' + error.code);
             }
         } else {
+            // Headers adicionales para archivos específicos
+            if (extname === '.js' || extname === '.css' || extname === '.html') {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
+            }
+            
             res.writeHead(200, { 'Content-Type': contentType });
             res.end(content, 'utf-8');
         }

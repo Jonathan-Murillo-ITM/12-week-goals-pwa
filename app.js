@@ -1,7 +1,15 @@
 // ===== CONFIGURACIÓN ===== 
-// Detectar si estamos en GitHub Pages
+// Detectar si estamos en GitHub Pages o desarrollo local
 const isGitHubPages = window.location.hostname.includes('github.io');
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const basePath = isGitHubPages ? '/12-week-goals-pwa' : '';
+
+console.log('🔍 Entorno detectado:', {
+    hostname: window.location.hostname,
+    isGitHubPages,
+    isLocalhost,
+    basePath
+});
 
 const API_CONFIG = {
     baseURL: 'https://12-week-goals-back-production.up.railway.app/api', // Tu API backend
@@ -74,19 +82,44 @@ function initializeApp() {
     // Mostrar splash screen por 500ms (más rápido)
     setTimeout(() => {
         showScreen('main');
-        // Cargar automáticamente el progreso de las metas con un pequeño delay
+        
+        // Debug inmediato
+        console.log('🔍 DEBUGGING - Estado de elementos:');
+        console.log('- calculator-result existe:', !!document.getElementById('calculator-result'));
+        console.log('- reload-progress existe:', !!document.getElementById('reload-progress'));
+        
+        // Mostrar inmediatamente un mensaje de carga
+        const resultDiv = document.getElementById('calculator-result');
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
+                    <p><strong>⏳ Cargando progreso de metas...</strong></p>
+                    <p>Conectando con el servidor...</p>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+        }
+        
+        // Cargar automáticamente el progreso de las metas con delay
         setTimeout(() => {
             loadWeekProgress();
-        }, 1000);
+        }, 1500);
     }, 500);
 }
 
 function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
         const swPath = isGitHubPages ? '/12-week-goals-pwa/sw.js' : '/sw.js';
+        console.log('📄 Service Worker path:', swPath);
+        
         navigator.serviceWorker.register(swPath)
-            .then(registration => console.log('SW registrado:', registration))
-            .catch(error => console.log('SW error:', error));
+            .then(registration => {
+                console.log('✅ SW registrado:', registration);
+                console.log('🔄 SW scope:', registration.scope);
+            })
+            .catch(error => {
+                console.log('❌ SW error:', error);
+            });
     }
 }
 
@@ -361,63 +394,84 @@ async function getWeekProgress(startDate) {
             ? startDate.toISOString().split('T')[0] 
             : startDate;
             
-        const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${formattedDate}`);
+        const url = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${formattedDate}`;
+        console.log('🌐 Haciendo fetch a:', url);
+        
+        const response = await fetch(url);
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response ok:', response.ok);
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('📊 Data recibida:', data);
         return data;
         
     } catch (error) {
-        console.error('Error al consultar progreso de semanas:', error);
+        console.error('❌ Error en getWeekProgress:', error);
         throw error;
     }
 }
 
 // Función para cargar automáticamente el progreso
 async function loadWeekProgress() {
+    console.log('� INICIO loadWeekProgress()');
+    
+    const resultDiv = document.getElementById('calculator-result');
+    if (!resultDiv) {
+        console.error('❌ No se encontró el elemento calculator-result');
+        return;
+    }
+    
     try {
-        console.log('📊 Cargando progreso de semanas automáticamente...');
-        
-        // Verificar que el elemento exista
-        const resultDiv = document.getElementById('calculator-result');
-        if (!resultDiv) {
-            console.error('❌ No se encontró el elemento calculator-result');
-            return;
-        }
+        // Actualizar mensaje a "consultando"
+        resultDiv.innerHTML = `
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                <p><strong>� Consultando servidor...</strong></p>
+                <p>Obteniendo datos del progreso...</p>
+            </div>
+        `;
         
         const testDate = '2025-07-14';
-        console.log('📅 Consultando con fecha:', testDate);
-        console.log('🌐 URL completa:', `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${testDate}`);
+        const fullUrl = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${testDate}`;
         
+        console.log('📅 Fecha de consulta:', testDate);
+        console.log('🌐 URL completa:', fullUrl);
+        console.log('🔧 API_CONFIG:', API_CONFIG);
+        
+        console.log('📡 Iniciando fetch...');
         const result = await getWeekProgress(testDate);
-        console.log('✅ Resultado del calculador de semanas:', result);
+        console.log('✅ Respuesta recibida:', result);
         
-        if (result) {
+        if (result && result.message) {
+            console.log('✅ Mostrando resultado en UI');
             displayCalculatorResult(result);
-            console.log('✅ Progreso mostrado en interfaz');
         } else {
-            console.log('❌ No se obtuvo resultado del API');
+            console.error('❌ Resultado inválido:', result);
+            throw new Error('Respuesta del API inválida');
         }
-    } catch (error) {
-        console.error('❌ Error al cargar progreso automáticamente:', error);
-        // Mostrar un mensaje de error amigable y el botón de recarga
-        const resultDiv = document.getElementById('calculator-result');
-        const reloadDiv = document.getElementById('reload-progress');
         
-        if (resultDiv) {
-            resultDiv.innerHTML = `
-                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; color: #856404;">
-                    <p><strong>⚠️ No se pudo cargar el progreso</strong></p>
-                    <p>Verifica tu conexión a internet e intenta recargar.</p>
-                </div>
-            `;
-            resultDiv.classList.remove('hidden');
-        }
+    } catch (error) {
+        console.error('❌ ERROR en loadWeekProgress:', error);
+        console.error('❌ Error details:', {
+            message: error.message,
+            stack: error.stack
+        });
+        
+        // Mostrar error específico
+        resultDiv.innerHTML = `
+            <div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
+                <p><strong>❌ Error al cargar progreso</strong></p>
+                <p><strong>Detalles:</strong> ${error.message}</p>
+                <p><strong>URL:</strong> ${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}</p>
+                <p>Verifica tu conexión e intenta recargar.</p>
+            </div>
+        `;
         
         // Mostrar botón de recarga
+        const reloadDiv = document.getElementById('reload-progress');
         if (reloadDiv) {
             reloadDiv.classList.remove('hidden');
         }
@@ -544,12 +598,51 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
 // Función global para debugging del calculador
 window.debugCalculator = {
     load: loadWeekProgress,
+    test: async () => {
+        console.log('🧪 PRUEBA MANUAL DEL API');
+        try {
+            const url = 'https://12-week-goals-back-production.up.railway.app/api/Goals/week-calculator?startDate=2025-07-14';
+            console.log('🌐 URL de prueba:', url);
+            
+            const response = await fetch(url);
+            console.log('📡 Status:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Datos recibidos:', data);
+                return data;
+            } else {
+                console.error('❌ Error HTTP:', response.status, response.statusText);
+            }
+        } catch (error) {
+            console.error('❌ Error de red:', error);
+        }
+    },
     checkElements: () => {
         console.log('🔍 Estado de elementos:');
         console.log('- calculatorResult:', document.getElementById('calculator-result'));
+        console.log('- reloadProgress:', document.getElementById('reload-progress'));
+    },
+    show: (data) => {
+        const testData = data || {
+            "currentWeek": 2,
+            "message": "Estás en la semana 2 de tus 12 semanas de metas.",
+            "startDate": "14/07/2025",
+            "currentDate": "22/07/2025",
+            "totalWeeks": 12,
+            "weeksCompleted": 2,
+            "weeksRemaining": 10,
+            "progressPercentage": 16.7,
+            "daysSinceStart": 8,
+            "isCompleted": false,
+            "nextWeekStartsOn": "28/07/2025"
+        };
+        displayCalculatorResult(testData);
     }
 };
 
 console.log('🛠️ Funciones de debug disponibles en window.debugCalculator');
-console.log('- debugCalculator.load(): Cargar progreso manualmente');
-console.log('- debugCalculator.checkElements(): Verificar elementos del DOM');
+console.log('- debugCalculator.load(): Cargar progreso');
+console.log('- debugCalculator.test(): Probar API directamente');
+console.log('- debugCalculator.checkElements(): Verificar elementos DOM');
+console.log('- debugCalculator.show(): Mostrar datos de prueba');
