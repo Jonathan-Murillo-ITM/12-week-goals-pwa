@@ -23,7 +23,6 @@ const elements = {
     
     // Main screen
     createGoalsBtn: document.getElementById('create-goals-btn'),
-    testCalculatorBtn: document.getElementById('test-calculator-btn'),
     calculatorResult: document.getElementById('calculator-result'),
     
     // Create screen
@@ -55,23 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setDefaultStartDate();
     
-    // Configurar función global como backup
-    window.testCalculatorClick = () => {
-        console.log('🔄 Ejecutando via función global...');
-        handleTestCalculator();
-    };
-    
     console.log('✅ Inicialización completada');
 });
 
 function initializeElements() {
     // Reasignar elementos del DOM para asegurar que existen
-    elements.testCalculatorBtn = document.getElementById('test-calculator-btn');
     elements.calculatorResult = document.getElementById('calculator-result');
     
     // Debug: verificar que los elementos existen
     console.log('🔍 Verificando elementos del DOM:');
-    console.log('- testCalculatorBtn:', elements.testCalculatorBtn ? '✅ Encontrado' : '❌ No encontrado');
     console.log('- calculatorResult:', elements.calculatorResult ? '✅ Encontrado' : '❌ No encontrado');
 }
 
@@ -79,6 +70,8 @@ function initializeApp() {
     // Mostrar splash screen por 500ms (más rápido)
     setTimeout(() => {
         showScreen('main');
+        // Cargar automáticamente el progreso de las metas
+        loadWeekProgress();
     }, 500);
 }
 
@@ -100,15 +93,6 @@ function setupEventListeners() {
     const continueBtn = document.getElementById('continue-btn');
     if (continueBtn) {
         continueBtn.addEventListener('click', () => showScreen('main'));
-    }
-    
-    // Calculator test button - con verificación adicional
-    const testBtn = document.getElementById('test-calculator-btn');
-    if (testBtn) {
-        testBtn.addEventListener('click', handleTestCalculator);
-        console.log('✅ Event listener del calculador configurado correctamente');
-    } else {
-        console.error('❌ No se encontró el botón test-calculator-btn');
     }
     
     // Form
@@ -371,52 +355,24 @@ async function getWeekProgress(startDate) {
     }
 }
 
-// Función para probar el calculador con la fecha que mencionaste
-async function testWeekCalculator() {
+// Función para cargar automáticamente el progreso
+async function loadWeekProgress() {
     try {
+        console.log('📊 Cargando progreso de semanas automáticamente...');
+        
         const testDate = '2025-07-14';
         console.log('📅 Consultando con fecha:', testDate);
         console.log('🌐 URL completa:', `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${testDate}`);
         
         const result = await getWeekProgress(testDate);
         console.log('✅ Resultado del calculador de semanas:', result);
-        return result;
-    } catch (error) {
-        console.error('❌ Error en test del calculador:', error);
-        throw error;
-    }
-}
-
-// Manejar el click del botón de test del calculador
-async function handleTestCalculator() {
-    console.log('🚀 handleTestCalculator ejecutándose...');
-    
-    const testBtn = document.getElementById('test-calculator-btn');
-    if (!testBtn) {
-        console.error('❌ No se pudo encontrar el botón test-calculator-btn');
-        return;
-    }
-    
-    try {
-        testBtn.disabled = true;
-        testBtn.textContent = 'Consultando...';
-        console.log('📡 Iniciando consulta al calculador...');
-        
-        const result = await testWeekCalculator();
         
         if (result) {
-            console.log('✅ Resultado obtenido:', result);
             displayCalculatorResult(result);
-        } else {
-            console.log('❌ No se obtuvo resultado');
         }
     } catch (error) {
-        console.error('❌ Error en handleTestCalculator:', error);
-        showAlert('Error', 'No se pudo consultar el calculador de semanas: ' + error.message);
-    } finally {
-        testBtn.disabled = false;
-        testBtn.textContent = 'Probar Calculador de Semanas';
-        console.log('🔄 Botón restaurado');
+        console.error('❌ Error al cargar progreso automáticamente:', error);
+        // Si hay error, simplemente no mostramos nada, la app sigue funcionando
     }
 }
 
@@ -531,29 +487,15 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
     console.log('📊 Configuración API:', API_CONFIG);
 }
 
-// Funciones globales para debugging
+// Función global para debugging del calculador
 window.debugCalculator = {
-    test: testWeekCalculator,
-    handle: handleTestCalculator,
+    load: loadWeekProgress,
     checkElements: () => {
         console.log('🔍 Estado de elementos:');
-        console.log('- testCalculatorBtn:', document.getElementById('test-calculator-btn'));
         console.log('- calculatorResult:', document.getElementById('calculator-result'));
-    },
-    quickTest: async () => {
-        console.log('🧪 Prueba rápida del calculador...');
-        try {
-            const result = await testWeekCalculator();
-            console.log('Resultado:', result);
-            return result;
-        } catch (error) {
-            console.error('Error:', error);
-        }
     }
 };
 
 console.log('🛠️ Funciones de debug disponibles en window.debugCalculator');
-console.log('- debugCalculator.test(): Probar función del calculador');
-console.log('- debugCalculator.handle(): Simular click del botón');
+console.log('- debugCalculator.load(): Cargar progreso manualmente');
 console.log('- debugCalculator.checkElements(): Verificar elementos del DOM');
-console.log('- debugCalculator.quickTest(): Prueba rápida completa');
