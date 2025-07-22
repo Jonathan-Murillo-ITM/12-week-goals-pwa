@@ -1,9 +1,10 @@
 // ===== CONFIGURACIÓN ===== 
 const API_CONFIG = {
-    baseURL: 'http://192.168.1.11:8000/api', // Tu API backend
+    baseURL: 'https://12-week-goals-back-production.up.railway.app/api', // Tu API backend
     endpoints: {
         createGoals: '/goals/create',
-        callback: '/goals/callback'
+        callback: '/goals/callback',
+        weekCalculator: '/Goals/week-calculator'
     }
 };
 
@@ -22,6 +23,8 @@ const elements = {
     
     // Main screen
     createGoalsBtn: document.getElementById('create-goals-btn'),
+    testCalculatorBtn: document.getElementById('test-calculator-btn'),
+    calculatorResult: document.getElementById('calculator-result'),
     
     // Create screen
     backBtn: document.getElementById('back-btn'),
@@ -43,11 +46,19 @@ const elements = {
 
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', () => {
+    // Inicializar elementos del DOM después de que se cargue
+    initializeElements();
     initializeApp();
     registerServiceWorker();
     setupEventListeners();
     setDefaultStartDate();
 });
+
+function initializeElements() {
+    // Reasignar elementos del DOM para asegurar que existen
+    elements.testCalculatorBtn = document.getElementById('test-calculator-btn');
+    elements.calculatorResult = document.getElementById('calculator-result');
+}
 
 function initializeApp() {
     // Mostrar splash screen por 500ms (más rápido)
@@ -75,6 +86,9 @@ function setupEventListeners() {
     if (continueBtn) {
         continueBtn.addEventListener('click', () => showScreen('main'));
     }
+    
+    // Calculator test button
+    elements.testCalculatorBtn.addEventListener('click', handleTestCalculator);
     
     // Form
     elements.addGoalBtn.addEventListener('click', addGoal);
@@ -312,6 +326,83 @@ function setLoadingState(loading) {
         elements.buttonText.classList.remove('hidden');
         elements.buttonLoading.classList.add('hidden');
     }
+}
+
+// ===== CALCULADOR DE SEMANAS =====
+async function getWeekProgress(startDate) {
+    try {
+        const formattedDate = startDate instanceof Date 
+            ? startDate.toISOString().split('T')[0] 
+            : startDate;
+            
+        const response = await fetch(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${formattedDate}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data;
+        
+    } catch (error) {
+        console.error('Error al consultar progreso de semanas:', error);
+        throw error;
+    }
+}
+
+// Función para probar el calculador con la fecha que mencionaste
+async function testWeekCalculator() {
+    try {
+        const testDate = '2025-07-14';
+        const result = await getWeekProgress(testDate);
+        console.log('Resultado del calculador de semanas:', result);
+        return result;
+    } catch (error) {
+        console.error('Error en test del calculador:', error);
+    }
+}
+
+// Manejar el click del botón de test del calculador
+async function handleTestCalculator() {
+    try {
+        elements.testCalculatorBtn.disabled = true;
+        elements.testCalculatorBtn.textContent = 'Consultando...';
+        
+        const result = await testWeekCalculator();
+        
+        if (result) {
+            displayCalculatorResult(result);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error', 'No se pudo consultar el calculador de semanas');
+    } finally {
+        elements.testCalculatorBtn.disabled = false;
+        elements.testCalculatorBtn.textContent = 'Probar Calculador de Semanas';
+    }
+}
+
+// Mostrar resultado del calculador en la interfaz
+function displayCalculatorResult(data) {
+    const resultDiv = elements.calculatorResult;
+    
+    resultDiv.innerHTML = `
+        <h3>📊 Progreso de Metas</h3>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
+            <p><strong>${data.message}</strong></p>
+            <div style="margin-top: 10px;">
+                <p><strong>📅 Fecha de inicio:</strong> ${data.startDate}</p>
+                <p><strong>📅 Fecha actual:</strong> ${data.currentDate}</p>
+                <p><strong>📈 Progreso:</strong> ${data.progressPercentage}% (${data.weeksCompleted}/${data.totalWeeks} semanas)</p>
+                <p><strong>⏰ Días transcurridos:</strong> ${data.daysSinceStart}</p>
+                <p><strong>⏳ Semanas restantes:</strong> ${data.weeksRemaining}</p>
+                ${data.nextWeekStartsOn ? `<p><strong>📌 Próxima semana:</strong> ${data.nextWeekStartsOn}</p>` : ''}
+                ${data.isCompleted ? '<p style="color: #28a745;"><strong>🎉 ¡Ciclo completado!</strong></p>' : ''}
+            </div>
+        </div>
+    `;
+    
+    resultDiv.classList.remove('hidden');
 }
 
 function showSuccess(data) {
