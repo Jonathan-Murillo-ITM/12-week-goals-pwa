@@ -12,11 +12,10 @@ console.log('🔍 Entorno detectado:', {
 });
 
 const API_CONFIG = {
-    baseURL: 'https://12-week-goals-back-production.up.railway.app/api', // Tu API backend
+    baseURL: 'https://12-week-goals-back-production.up.railway.app/api',
     endpoints: {
-        createGoals: '/goals/create',
-        callback: '/goals/callback',
-        weekCalculator: '/Goals/week-calculator'
+        getListsFromCache: '/goals/get-lists-from-cache',
+        getListsWithBrowser: '/goals/get-lists-with-browser-and-cache'
     }
 };
 
@@ -26,6 +25,117 @@ function createCacheBustingUrl(url) {
     const separator = url.includes('?') ? '&' : '?';
     return `${url}${separator}_t=${timestamp}`;
 }
+
+// ===== FUNCIÓN DE DEBUGGING PARA CALLBACK =====
+async function testCallbackEndpoint(code) {
+    try {
+        console.log('🔍 Testing callback endpoint with code:', code);
+        
+        const url = createCacheBustingUrl(`${API_CONFIG.baseURL}/goals/callback?code=${code}`);
+        console.log('🌐 Testing URL:', url);
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Accept': 'application/json'
+            },
+            cache: 'no-store'
+        });
+        
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+        
+        const text = await response.text();
+        console.log('📡 Raw response:', text);
+        
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (parseError) {
+            console.error('❌ JSON parse error:', parseError);
+            data = { error: 'Invalid JSON response', rawResponse: text };
+        }
+        
+        console.log('📊 Parsed data:', data);
+        
+        // Mostrar resultado en la UI
+        const resultDiv = document.getElementById('calculator-result');
+        if (resultDiv) {
+            const diagnostics = [];
+            
+            // Análisis del error
+            if (data.error === "No se pudo obtener el token de acceso") {
+                diagnostics.push("❌ El intercambio código→token falló");
+                diagnostics.push("🔍 Posibles causas:");
+                diagnostics.push("• Código expirado (códigos duran ~10 minutos)");
+                diagnostics.push("• Configuración OAuth incorrecta en el backend");
+                diagnostics.push("• Redirect URI no coincide exactamente");
+                diagnostics.push("• Client ID o Client Secret incorrectos");
+            }
+            
+            if (data.step === "exchange_code_for_token") {
+                diagnostics.push("🔧 El error ocurre al llamar a Microsoft Graph");
+                diagnostics.push("📍 Endpoint: https://login.microsoftonline.com/common/oauth2/v2.0/token");
+            }
+            
+            resultDiv.innerHTML = `
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #17a2b8;">
+                    <h4>🔍 Debug Callback Test</h4>
+                    <p><strong>Status HTTP:</strong> ${response.status}</p>
+                    <p><strong>Success:</strong> ${data.success || 'false'}</p>
+                    <p><strong>Error:</strong> ${data.error || 'N/A'}</p>
+                    <p><strong>Paso fallido:</strong> ${data.step || 'N/A'}</p>
+                    <p><strong>Código proporcionado:</strong> ${data.codeProvided || 'N/A'}</p>
+                    <p><strong>Longitud del código:</strong> ${data.codeLength || 'N/A'}</p>
+                    
+                    ${diagnostics.length > 0 ? `
+                        <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 6px;">
+                            <h5 style="margin: 0 0 10px 0; color: #856404;">🩺 Diagnóstico</h5>
+                            ${diagnostics.map(d => `<p style="margin: 3px 0; font-size: 14px;">${d}</p>`).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <details style="margin-top: 15px;">
+                        <summary style="cursor: pointer; font-weight: bold;">📋 Respuesta completa del servidor</summary>
+                        <pre style="font-size: 12px; background: #f1f1f1; padding: 10px; margin-top: 10px; overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                    
+                    <div style="margin-top: 15px; padding: 10px; background: #d1ecf1; border-radius: 6px; font-size: 14px;">
+                        <strong>💡 Próximos pasos:</strong>
+                        <br>1. Verificar configuración OAuth en Railway
+                        <br>2. Comprobar redirect_uri exacto
+                        <br>3. Validar que el código no haya expirado
+                        <br>4. Revisar logs del backend en Railway
+                    </div>
+                </div>
+            `;
+        }
+        
+        return data;
+        
+    } catch (error) {
+        console.error('❌ Error testing callback:', error);
+        
+        const resultDiv = document.getElementById('calculator-result');
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
+                    <h4>❌ Error Testing Callback</h4>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>URL:</strong> ${API_CONFIG.baseURL}/goals/callback</p>
+                </div>
+            `;
+        }
+        
+        throw error;
+    }
+}
+
+// Exponer función para testing desde consola
+window.testCallback = testCallbackEndpoint;
 
 // ===== VARIABLES GLOBALES =====
 let currentScreen = 'splash';
@@ -131,7 +241,12 @@ function registerServiceWorker() {
 
 function setupEventListeners() {
     // Navigation
-    elements.createGoalsBtn.addEventListener('click', () => showScreen('create'));
+    elements.createGoalsBtn.addEventListener('click', () => {
+        console.log('🎯 Botón "Ver Mis Listas" clickeado');
+        verAvance().catch(error => {
+            console.error('❌ Error al obtener listas:', error);
+        });
+    });
     elements.backBtn.addEventListener('click', () => showScreen('main'));
     elements.doneBtn.addEventListener('click', () => showScreen('main'));
     
@@ -147,6 +262,25 @@ function setupEventListeners() {
         reloadBtn.addEventListener('click', () => {
             console.log('🔄 Recargando progreso manualmente...');
             loadWeekProgress();
+        });
+    }
+    
+    // Botón de testing callback
+    const testCallbackBtn = document.getElementById('test-callback-btn');
+    if (testCallbackBtn) {
+        testCallbackBtn.addEventListener('click', () => {
+            const codeInput = document.getElementById('debug-code');
+            const code = codeInput ? codeInput.value.trim() : '';
+            
+            if (!code) {
+                alert('Por favor ingresa un código de autorización');
+                return;
+            }
+            
+            console.log('🧪 Testing callback with code:', code);
+            testCallbackEndpoint(code).catch(error => {
+                console.error('❌ Error testing callback:', error);
+            });
         });
     }
     
@@ -393,27 +527,16 @@ function setLoadingState(loading) {
     }
 }
 
-// ===== CALCULADOR DE SEMANAS =====
-async function getWeekProgress(startDate, cacheBuster = null) {
+// ===== VER LISTAS DE MICROSOFT TO DO =====
+async function verAvance() {
     try {
-        const formattedDate = startDate instanceof Date 
-            ? startDate.toISOString().split('T')[0] 
-            : startDate;
+        console.log('🎯 Iniciando verificación de listas...');
         
-        // Construir URL base
-        let url = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${formattedDate}`;
+        // 1. Intentar primero con cache (súper rápido)
+        console.log('⚡ Intentando obtener listas desde cache...');
+        const cacheUrl = createCacheBustingUrl(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.getListsFromCache}`);
         
-        // Aplicar cache-busting automáticamente
-        url = createCacheBustingUrl(url);
-        
-        // Agregar cache buster adicional si se proporciona
-        if (cacheBuster) {
-            url += `&v=${cacheBuster}`;
-        }
-        
-        console.log('🌐 Haciendo fetch a:', url);
-        
-        const response = await fetch(url, {
+        let response = await fetch(cacheUrl, {
             method: 'GET',
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -423,26 +546,120 @@ async function getWeekProgress(startDate, cacheBuster = null) {
             cache: 'no-store'
         });
         
-        console.log('📡 Response status:', response.status);
-        console.log('📡 Response ok:', response.ok);
+        let data = await response.json();
+        console.log('📊 Respuesta del cache:', data);
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.status}`);
+        if (data.success) {
+            console.log('✅ ¡Listas obtenidas desde cache!');
+            mostrarListas(data);
+            return data;
         }
         
-        const data = await response.json();
-        console.log('📊 Data recibida:', data);
-        return data;
+        // 2. Si falló el cache, pedir credenciales UNA VEZ
+        console.log('🔑 Cache falló, pidiendo credenciales...');
+        
+        const username = prompt("📧 Email de Microsoft (Outlook/Hotmail):");
+        if (!username) {
+            throw new Error('Email requerido');
+        }
+        
+        const password = prompt("🔒 Contraseña de Microsoft:");
+        if (!password) {
+            throw new Error('Contraseña requerida');
+        }
+        
+        console.log('🌐 Obteniendo listas con navegador y guardando token...');
+        const browserUrl = createCacheBustingUrl(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.getListsWithBrowser}`);
+        
+        response = await fetch(browserUrl, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            cache: 'no-store',
+            body: JSON.stringify({ username, password })
+        });
+        
+        data = await response.json();
+        console.log('� Respuesta del navegador:', data);
+        
+        if (data.success) {
+            console.log('✅ ¡Listas obtenidas y token guardado!');
+            mostrarListas(data);
+            
+            // Mostrar mensaje de éxito
+            const resultDiv = document.getElementById('calculator-result');
+            if (resultDiv) {
+                const successMessage = document.createElement('div');
+                successMessage.innerHTML = `
+                    <div style="background: #d4edda; padding: 10px; border-radius: 6px; margin-bottom: 15px; border-left: 4px solid #28a745;">
+                        <strong>🎉 ¡Token guardado!</strong> La próxima vez será automático y súper rápido.
+                    </div>
+                `;
+                resultDiv.insertBefore(successMessage, resultDiv.firstChild);
+                
+                setTimeout(() => {
+                    successMessage.remove();
+                }, 5000);
+            }
+            
+            return data;
+        } else {
+            throw new Error(data.error || 'Error al obtener las listas');
+        }
         
     } catch (error) {
-        console.error('❌ Error en getWeekProgress:', error);
+        console.error('❌ Error en verAvance:', error);
         throw error;
     }
 }
 
-// Función para cargar automáticamente el progreso
+// Mostrar listas en la interfaz
+function mostrarListas(data) {
+    const resultDiv = document.getElementById('calculator-result');
+    if (!resultDiv) return;
+    
+    console.log('🎨 Mostrando listas en la interfaz:', data);
+    
+    const listItems = data.listNames.map(name => 
+        `<li style="padding: 8px 0; border-bottom: 1px solid #eee;">${name}</li>`
+    ).join('');
+    
+    resultDiv.innerHTML = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #28a745;">
+            <h3 style="margin: 0 0 15px 0; color: #155724;">
+                🎯 Tus Listas en Microsoft To Do
+            </h3>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                <span style="background: #e7f3ff; padding: 6px 12px; border-radius: 20px; font-size: 14px;">
+                    📊 <strong>${data.totalLists}</strong> listas
+                </span>
+                <span style="background: ${data.source === 'cached_token' ? '#d4edda' : '#fff3cd'}; padding: 6px 12px; border-radius: 20px; font-size: 14px;">
+                    ${data.source === 'cached_token' ? '⚡ Desde cache' : '🌐 Navegador + Cache'}
+                </span>
+                ${data.tokenCached ? '<span style="background: #d1ecf1; padding: 6px 12px; border-radius: 20px; font-size: 14px;">🔐 Token guardado</span>' : ''}
+            </div>
+            
+            <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    ${listItems}
+                </ul>
+            </div>
+            
+            <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 14px;">
+                💡 <strong>Mensaje:</strong> ${data.message}
+            </p>
+        </div>
+    `;
+}
+
+// Función para cargar automáticamente las listas
 async function loadWeekProgress() {
-    console.log('� INICIO loadWeekProgress()');
+    console.log('🎯 INICIO loadWeekProgress() - Cargando listas automáticamente');
     
     const resultDiv = document.getElementById('calculator-result');
     if (!resultDiv) {
@@ -451,44 +668,17 @@ async function loadWeekProgress() {
     }
     
     try {
-        // Actualizar mensaje a "consultando"
+        // Mostrar mensaje de carga
         resultDiv.innerHTML = `
             <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
-                <p><strong>� Consultando servidor...</strong></p>
-                <p>Obteniendo datos del progreso...</p>
+                <p><strong>🔍 Consultando Microsoft To Do...</strong></p>
+                <p>Obteniendo tus listas automáticamente...</p>
             </div>
         `;
         
-        // Cache busting más agresivo para móviles
-        const timestamp = Date.now();
-        const randomValue = Math.random().toString(36).substring(7);
-        const cacheBuster = `${timestamp}_${randomValue}`;
-        
-        const testDate = '2025-07-14';
-        const fullUrl = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}?startDate=${testDate}&v=${cacheBuster}&_cb=${timestamp}`;
-        
-        console.log('📅 Fecha de consulta:', testDate);
-        console.log('🌐 URL completa:', fullUrl);
-        console.log('🔧 API_CONFIG:', API_CONFIG);
-        console.log('📱 Device Info:', {
-            userAgent: navigator.userAgent,
-            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-            isSafari: /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent),
-            isIOS: /iPad|iPhone|iPod/.test(navigator.userAgent),
-            cacheBuster: cacheBuster
-        });
-        
-        console.log('📡 Iniciando fetch...');
-        const result = await getWeekProgress(testDate, cacheBuster);
-        console.log('✅ Respuesta recibida:', result);
-        
-        if (result && result.message) {
-            console.log('✅ Mostrando resultado en UI');
-            displayCalculatorResult(result);
-        } else {
-            console.error('❌ Resultado inválido:', result);
-            throw new Error('Respuesta del API inválida');
-        }
+        console.log('� Llamando a verAvance()...');
+        const result = await verAvance();
+        console.log('✅ Listas cargadas exitosamente:', result);
         
     } catch (error) {
         console.error('❌ ERROR en loadWeekProgress:', error);
@@ -500,10 +690,10 @@ async function loadWeekProgress() {
         // Mostrar error específico
         resultDiv.innerHTML = `
             <div style="background: #f8d7da; padding: 15px; border-radius: 8px; border-left: 4px solid #dc3545;">
-                <p><strong>❌ Error al cargar progreso</strong></p>
+                <p><strong>❌ Error al cargar listas</strong></p>
                 <p><strong>Detalles:</strong> ${error.message}</p>
-                <p><strong>URL:</strong> ${API_CONFIG.baseURL}${API_CONFIG.endpoints.weekCalculator}</p>
-                <p>Verifica tu conexión e intenta recargar.</p>
+                <p><strong>API:</strong> ${API_CONFIG.baseURL}</p>
+                <p>Intenta recargar la página o verifica tu conexión.</p>
             </div>
         `;
         
@@ -512,35 +702,6 @@ async function loadWeekProgress() {
         if (reloadDiv) {
             reloadDiv.classList.remove('hidden');
         }
-    }
-}
-
-// Mostrar resultado del calculador en la interfaz
-function displayCalculatorResult(data) {
-    const resultDiv = elements.calculatorResult;
-    const reloadDiv = document.getElementById('reload-progress');
-    
-    resultDiv.innerHTML = `
-        <h3>📊 Progreso de Metas</h3>
-        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007AFF;">
-            <p><strong>${data.message}</strong></p>
-            <div style="margin-top: 10px;">
-                <p><strong>📅 Fecha de inicio:</strong> ${data.startDate}</p>
-                <p><strong>📅 Fecha actual:</strong> ${data.currentDate}</p>
-                <p><strong>📈 Progreso:</strong> ${data.progressPercentage}% (${data.weeksCompleted}/${data.totalWeeks} semanas)</p>
-                <p><strong>⏰ Días transcurridos:</strong> ${data.daysSinceStart}</p>
-                <p><strong>⏳ Semanas restantes:</strong> ${data.weeksRemaining}</p>
-                ${data.nextWeekStartsOn ? `<p><strong>📌 Próxima semana:</strong> ${data.nextWeekStartsOn}</p>` : ''}
-                ${data.isCompleted ? '<p style="color: #28a745;"><strong>🎉 ¡Ciclo completado!</strong></p>' : ''}
-            </div>
-        </div>
-    `;
-    
-    resultDiv.classList.remove('hidden');
-    
-    // Ocultar botón de recarga si existe
-    if (reloadDiv) {
-        reloadDiv.classList.add('hidden');
     }
 }
 
