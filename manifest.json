@@ -1,8 +1,8 @@
 {
-  "name": "12 Week Goals - Listas To Do",
-  "short_name": "Mis Listas",
-  "description": "Ve tus listas de Microsoft To Do rápidamente",
-  "start_url": "/",
+  "name": "12 Week Goals",
+  "short_name": "12WeekGoals",
+  "description": "Crea listas de tareas de 12 semanas en Microsoft To Do",
+  "start_url": "/12-week-goals-pwa/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#007AFF",
@@ -11,27 +11,27 @@
   "lang": "es",
   "icons": [
     {
-      "src": "icons/icon.svg",
+      "src": "/12-week-goals-pwa/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     },
     {
-      "src": "icons/icon-192x192.svg",
+      "src": "/12-week-goals-pwa/icons/icon-192x192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml"
     },
     {
-      "src": "icons/icon-512x512.svg",
+      "src": "/12-week-goals-pwa/icons/icon-512x512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml"
     }
   ],
   "shortcuts": [
     {
-      "name": "Ver Listas",
-      "short_name": "Listas",
-      "description": "Ver mis listas de Microsoft To Do",
-      "url": "/?action=view",
+      "name": "Crear Metas",
+      "short_name": "Crear",
+      "description": "Crear nuevas metas de 12 semanas",
+      "url": "/?action=create",
       "icons": [{ "src": "icons/icon.svg", "sizes": "any" }]
     }
   ]

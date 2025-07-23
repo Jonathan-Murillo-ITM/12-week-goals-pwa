@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>12 Week Goals</title>
     
+    <!-- Anti-cache headers -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- Versión para forzar actualizaciones -->
+    <meta name="version" content="1.0.1">
+    
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#007AFF">
     <meta name="mobile-web-app-capable" content="yes">
@@ -15,11 +23,11 @@
     <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
     <link rel="apple-touch-icon" href="icons/icon.svg">
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <!-- PWA Manifest - DESHABILITADO PARA EVITAR CACHE -->
+    <!-- <link rel="manifest" href="manifest.json"> -->
     
     <!-- Estilos -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=1.0.1">
 </head>
 <body>
     <div id="app">
@@ -39,16 +47,17 @@
         <div id="main-screen" class="screen">
             <header class="header">
                 <h1>🎯 12 Week Goals</h1>
-                <p class="subtitle">Ve tus listas de Microsoft To Do</p>
+                <p class="subtitle">Crea tus metas de 12 semanas en Microsoft To Do</p>
+                <small style="opacity: 0.7; font-size: 12px;">v2.2 - Cache Busting</small>
             </header>
             
             <main class="main-content">
                 <button id="create-goals-btn" class="primary-button">
-                    🎯 Ver Mis Listas
+                    Crear Nuevas Metas
                 </button>
                 
-                <div id="calculator-result" class="info-section" style="margin-top: 20px;">
-                    <!-- Aquí se mostrarán las listas automáticamente -->
+                <div id="calculator-result" class="info-section hidden" style="margin-top: 20px;">
+                    <!-- Aquí se mostrará el resultado del calculador -->
                 </div>
                 
                 <div id="reload-progress" class="hidden" style="margin-top: 10px; text-align: center;">
@@ -155,6 +164,6 @@
             }
         });
     </script>
-    <script src="app.js"></script>
+    <script src="app.js?v=1.0.1"></script>
 </body>
 </html>
