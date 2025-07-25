@@ -16,7 +16,11 @@ const API_CONFIG = {
     endpoints: {
         createGoals: '/goals/create',
         callback: '/goals/callback',
-        weekCalculator: '/Goals/week-calculator'
+        weekCalculator: '/Goals/week-calculator',
+        // Nuevos endpoints simplificados sin Selenium
+        auth: '/goals/auth',
+        authWithCode: '/goals/auth-with-code',
+        getListsFromCache: '/goals/get-lists-from-cache'
     }
 };
 
@@ -25,6 +29,296 @@ function createCacheBustingUrl(url) {
     const timestamp = Date.now();
     const separator = url.includes('?') ? '&' : '?';
     return `${url}${separator}_t=${timestamp}`;
+}
+
+// ===== VER LISTAS DE MICROSOFT TO DO =====
+async function verAvance() {
+    try {
+        console.log('🎯 Iniciando verificación de listas...');
+        
+        // Mostrar mensaje de carga
+        const resultDiv = document.getElementById('calculator-result');
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3;">
+                    <p><strong>⚡ Verificando cache...</strong></p>
+                    <p>Buscando listas guardadas...</p>
+                </div>
+            `;
+            resultDiv.classList.remove('hidden');
+        }
+        
+        // 1. Intentar primero con cache (súper rápido)
+        console.log('⚡ Intentando obtener listas desde cache...');
+        const cacheUrl = createCacheBustingUrl(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.getListsFromCache}`);
+        
+        let response = await fetch(cacheUrl, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            cache: 'no-store'
+        });
+        
+        let data = await response.json();
+        console.log('📊 Respuesta del cache:', data);
+        
+        if (data.success) {
+            console.log('✅ ¡Listas obtenidas desde cache!');
+            mostrarListas(data);
+            return data;
+        }
+        
+        // 2. Si no hay cache, pedir autorización UNA VEZ
+        console.log('🔑 No hay cache, obteniendo URL de autorización...');
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                    <p><strong>🔑 Obteniendo autorización...</strong></p>
+                    <p>Preparando autenticación con Microsoft...</p>
+                </div>
+            `;
+        }
+        
+        const authUrl = createCacheBustingUrl(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth}`);
+        response = await fetch(authUrl, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            cache: 'no-store'
+        });
+        
+        data = await response.json();
+        console.log('🔗 URL de autorización obtenida:', data);
+        
+        if (!data.authUrl) {
+            throw new Error('No se pudo obtener la URL de autorización');
+        }
+        
+        // 3. Mostrar instrucciones y abrir URL de autorización
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div style="background: #e7f3ff; padding: 20px; border-radius: 12px; border-left: 4px solid #0066cc;">
+                    <h3 style="margin: 0 0 15px 0; color: #0066cc;">
+                        🔐 Autorización de Microsoft
+                    </h3>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <p><strong>Se abrirá una nueva ventana para autenticarte con Microsoft</strong></p>
+                        <p>Después de autorizar, copia el código que aparece en la URL</p>
+                    </div>
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <h4 style="margin: 0 0 10px 0;">📋 Instrucciones:</h4>
+                        <ol style="margin: 0; padding-left: 20px;">
+                            <li>Se abrirá Microsoft en una nueva ventana</li>
+                            <li>Inicia sesión con tu cuenta de Outlook/Hotmail</li>
+                            <li>Autoriza el acceso a Microsoft To Do</li>
+                            <li>Copia el código que aparece en la URL</li>
+                            <li>Pégalo cuando te lo pida</li>
+                        </ol>
+                    </div>
+                    
+                    <button id="open-auth-btn" class="primary-button" style="width: 100%; margin-bottom: 10px;">
+                        🌐 Abrir Autorización de Microsoft
+                    </button>
+                    
+                    <button id="paste-code-btn" class="secondary-button" style="width: 100%;">
+                        📋 Ya tengo el código
+                    </button>
+                </div>
+            `;
+            
+            // Event listeners para los botones
+            const openAuthBtn = document.getElementById('open-auth-btn');
+            const pasteCodeBtn = document.getElementById('paste-code-btn');
+            
+            if (openAuthBtn) {
+                openAuthBtn.addEventListener('click', () => {
+                    console.log('🌐 Abriendo URL de autorización:', data.authUrl);
+                    window.open(data.authUrl, '_blank');
+                    
+                    // Cambiar el botón a "opened"
+                    openAuthBtn.innerHTML = '✅ Ventana abierta - Ahora autoriza';
+                    openAuthBtn.style.background = '#28a745';
+                });
+            }
+            
+            if (pasteCodeBtn) {
+                pasteCodeBtn.addEventListener('click', async () => {
+                    await solicitarCodigo();
+                });
+            }
+        }
+        
+        return null;
+        
+    } catch (error) {
+        console.error('❌ Error en verAvance:', error);
+        mostrarErrorGeneral(error.message);
+        throw error;
+    }
+}
+
+// Función para solicitar y procesar el código
+async function solicitarCodigo() {
+    try {
+        // 4. Pedir al usuario que pegue el código que obtiene
+        const codigo = prompt("📋 Pega aquí el código que aparece en la URL después de autorizar:");
+        
+        if (!codigo || !codigo.trim()) {
+            alert('❌ No se proporcionó ningún código. Intenta nuevamente.');
+            return;
+        }
+        
+        console.log('📝 Código recibido:', codigo.substring(0, 10) + '...');
+        
+        // Mostrar mensaje de procesamiento
+        const resultDiv = document.getElementById('calculator-result');
+        if (resultDiv) {
+            resultDiv.innerHTML = `
+                <div style="background: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                    <p><strong>🔄 Procesando código...</strong></p>
+                    <p>Obteniendo tus listas de Microsoft To Do...</p>
+                </div>
+            `;
+        }
+        
+        // 5. Enviar el código al backend
+        const codeUrl = createCacheBustingUrl(`${API_CONFIG.baseURL}${API_CONFIG.endpoints.authWithCode}`);
+        const response = await fetch(codeUrl, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            },
+            cache: 'no-store',
+            body: JSON.stringify({ code: codigo.trim() })
+        });
+        
+        const data = await response.json();
+        console.log('📊 Respuesta del código:', data);
+        
+        if (data.success) {
+            console.log('✅ ¡Listas obtenidas con código!');
+            mostrarListas(data);
+            
+            // Mostrar mensaje de éxito sobre el token guardado
+            setTimeout(() => {
+                alert("🎉 ¡Token guardado! La próxima vez será automático y súper rápido.");
+            }, 1000);
+            
+            return data;
+        } else {
+            throw new Error(data.error || 'Error al procesar el código');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error al procesar código:', error);
+        mostrarErrorGeneral(`Error al procesar código: ${error.message}`);
+        throw error;
+    }
+}
+
+// Mostrar listas en la interfaz
+function mostrarListas(data) {
+    const resultDiv = document.getElementById('calculator-result');
+    if (!resultDiv) return;
+    
+    console.log('🎨 Mostrando listas en la interfaz:', data);
+    
+    const listItems = data.listNames.map(name => 
+        `<li style="padding: 8px 0; border-bottom: 1px solid #eee; display: flex; align-items: center;">
+            <span style="margin-right: 8px;">📝</span>
+            ${name}
+        </li>`
+    ).join('');
+    
+    resultDiv.innerHTML = `
+        <div style="background: #f8f9fa; padding: 20px; border-radius: 12px; border-left: 4px solid #28a745;">
+            <h3 style="margin: 0 0 15px 0; color: #155724;">
+                🎯 Tus Listas en Microsoft To Do
+            </h3>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                <span style="background: #e7f3ff; padding: 6px 12px; border-radius: 20px; font-size: 14px;">
+                    📊 <strong>${data.totalLists}</strong> listas
+                </span>
+                <span style="background: ${data.source === 'cached_token' ? '#d4edda' : '#fff3cd'}; padding: 6px 12px; border-radius: 20px; font-size: 14px;">
+                    ${data.source === 'cached_token' ? '⚡ Desde cache' : '🔑 Nueva autorización'}
+                </span>
+                ${data.tokenCached ? '<span style="background: #d1ecf1; padding: 6px 12px; border-radius: 20px; font-size: 14px;">🔐 Token guardado</span>' : ''}
+            </div>
+            
+            <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <ul style="list-style: none; padding: 0; margin: 0;">
+                    ${listItems}
+                </ul>
+            </div>
+            
+            <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 14px;">
+                💡 <strong>Mensaje:</strong> ${data.message || 'Listas obtenidas exitosamente'}
+            </p>
+            
+            <div style="margin-top: 15px; padding: 10px; background: #d1ecf1; border-radius: 6px; font-size: 14px;">
+                <strong>✨ Próxima vez:</strong> Las listas aparecerán instantáneamente sin necesidad de autorización
+            </div>
+        </div>
+    `;
+    
+    resultDiv.classList.remove('hidden');
+}
+
+// Mostrar error general
+function mostrarErrorGeneral(mensaje) {
+    const resultDiv = document.getElementById('calculator-result');
+    if (!resultDiv) return;
+    
+    resultDiv.innerHTML = `
+        <div style="background: #f8d7da; padding: 20px; border-radius: 12px; border-left: 4px solid #dc3545;">
+            <h3 style="margin: 0 0 15px 0; color: #721c24;">
+                ❌ Error
+            </h3>
+            
+            <div style="margin-bottom: 15px;">
+                <p><strong>Mensaje:</strong> ${mensaje}</p>
+                <p>Verifica tu conexión e intenta nuevamente.</p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <h4 style="margin: 0 0 10px 0;">🔧 Posibles soluciones:</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Verifica tu conexión a internet</li>
+                    <li>Asegúrate de estar usando el código correcto</li>
+                    <li>El código puede haber expirado (duran ~10 minutos)</li>
+                    <li>Intenta el proceso de autorización nuevamente</li>
+                </ul>
+            </div>
+            
+            <button id="retry-btn" class="primary-button" style="width: 100%;">
+                🔄 Intentar Nuevamente
+            </button>
+        </div>
+    `;
+    
+    // Event listener para el botón de reintentar
+    const retryBtn = document.getElementById('retry-btn');
+    if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+            verAvance().catch(error => {
+                console.error('❌ Error al reintentar:', error);
+            });
+        });
+    }
+    
+    resultDiv.classList.remove('hidden');
 }
 
 // ===== VARIABLES GLOBALES =====
@@ -42,6 +336,7 @@ const elements = {
     
     // Main screen
     createGoalsBtn: document.getElementById('create-goals-btn'),
+    viewListsBtn: document.getElementById('view-lists-btn'),
     calculatorResult: document.getElementById('calculator-result'),
     
     // Create screen
@@ -134,6 +429,18 @@ function setupEventListeners() {
     elements.createGoalsBtn.addEventListener('click', () => showScreen('create'));
     elements.backBtn.addEventListener('click', () => showScreen('main'));
     elements.doneBtn.addEventListener('click', () => showScreen('main'));
+    
+    // Nuevo botón para ver listas
+    const viewListsBtn = document.getElementById('view-lists-btn');
+    if (viewListsBtn) {
+        viewListsBtn.addEventListener('click', () => {
+            console.log('🎯 Botón "Ver Mis Listas" clickeado');
+            verAvance().catch(error => {
+                console.error('❌ Error al obtener listas:', error);
+                mostrarErrorGeneral(error.message);
+            });
+        });
+    }
     
     // Botón continuar del splash screen
     const continueBtn = document.getElementById('continue-btn');
@@ -683,3 +990,57 @@ console.log('- debugCalculator.load(): Cargar progreso');
 console.log('- debugCalculator.test(): Probar API directamente');
 console.log('- debugCalculator.checkElements(): Verificar elementos DOM');
 console.log('- debugCalculator.show(): Mostrar datos de prueba');
+
+// Debugging para las nuevas funciones de listas
+window.debugListas = {
+    verAvance: verAvance,
+    testCache: async () => {
+        console.log('🧪 PROBANDO CACHE DE LISTAS');
+        try {
+            const url = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.getListsFromCache}`;
+            console.log('🌐 URL:', url);
+            
+            const response = await fetch(url);
+            console.log('📡 Status:', response.status);
+            
+            const data = await response.json();
+            console.log('✅ Datos:', data);
+            return data;
+        } catch (error) {
+            console.error('❌ Error:', error);
+        }
+    },
+    testAuth: async () => {
+        console.log('🧪 PROBANDO AUTORIZACIÓN');
+        try {
+            const url = `${API_CONFIG.baseURL}${API_CONFIG.endpoints.auth}`;
+            console.log('🌐 URL:', url);
+            
+            const response = await fetch(url);
+            console.log('📡 Status:', response.status);
+            
+            const data = await response.json();
+            console.log('✅ Datos:', data);
+            return data;
+        } catch (error) {
+            console.error('❌ Error:', error);
+        }
+    },
+    mostrarListas: (data) => {
+        const testData = data || {
+            success: true,
+            totalLists: 5,
+            listNames: ["🎯 Test Lista 1", "📝 Test Lista 2", "✅ Test Lista 3"],
+            source: "cached_token",
+            tokenCached: true,
+            message: "Test - Listas de prueba"
+        };
+        mostrarListas(testData);
+    }
+};
+
+console.log('🛠️ Funciones de debug para listas disponibles en window.debugListas');
+console.log('- debugListas.verAvance(): Probar flujo completo');
+console.log('- debugListas.testCache(): Probar cache de listas');
+console.log('- debugListas.testAuth(): Probar autorización');
+console.log('- debugListas.mostrarListas(): Mostrar datos de prueba');
